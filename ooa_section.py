@@ -57,6 +57,19 @@ class OoaSection(KaitaiStruct):
         self.has_tls = self._io.read_u4le()
         self.tls_address_of_callbacks = self._io.read_u4le()
         self.first_tls_callback = self._io.read_u8le()
+        if True:
+            self.tls_callback_offsets = []
+            i = 0
+            while True:
+                _ = self._io.read_u8le()
+                self.tls_callback_offsets.append(_)
+                if _ == 0:
+                    break
+                i += 1
+
+        if True:
+            self.alignment_gap = self._io.read_bytes(((490 - (self._io.pos() % 256)) if (self._io.pos() % 256) > 234 else (234 - (self._io.pos() % 256))))
+
         self.address_of_entry_point = self._io.read_u4le()
         self.count_of_crypted_sections = self._io.read_u1()
         self.enc_blocks = [None] * (self.count_of_crypted_sections)
@@ -249,6 +262,3 @@ class OoaSection(KaitaiStruct):
                 if _.characteristics == 0:
                     break
                 i += 1
-
-
-

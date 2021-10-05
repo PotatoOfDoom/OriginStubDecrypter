@@ -1,5 +1,6 @@
 import os, sys
 from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
+import pathlib
 import pefile
 import binascii
 import ooa_section
@@ -95,8 +96,7 @@ def fix_string(string):
  
 if __name__ == "__main__":
     #pe_path = input("Enter the path to the PE file: ")
-    pe_path = sys.argv[1]
-    pe_name = os.path.basename(pe_path)
+    pe_path = pathlib.Path(sys.argv[1])
 
     pe_file = pefile.PE(pe_path)
 
@@ -173,11 +173,11 @@ if __name__ == "__main__":
     # Needs some work - eventually switch to another pe library because this one apparently doesn't allow directly editing header data
     #delete_ooa_section(pe_file)
 
+    pe_file.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks = ooa_info.tls_address_of_callbacks + pe_file.OPTIONAL_HEADER.ImageBase
+
     # Fix TLS Directory - Very important! Some origin stub versions use this. General rule: if it isnt zero, set it
     if ooa_info.first_tls_callback != 0:
         pe_file.set_bytes_at_rva(ooa_info.tls_address_of_callbacks, ooa_info.first_tls_callback.to_bytes(8, byteorder='little', signed = False))
-
-    #pe_file.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData = ooa_info.tls_address_of_callbacks
 
     # Remove the digital signature.
     #pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress = 0
@@ -186,4 +186,4 @@ if __name__ == "__main__":
     # Finalize by aligning sections, and updating the checksum.
     pe_file.merge_modified_section_data()
     #pe_file.OPTIONAL_HEADER.CheckSum = pe_file.generate_checksum()
-    pe_file.write(filename=f"{pe_name}.fixed")
+    pe_file.write(filename=f"{pe_path.stem}.fixed{pe_path.suffix}")
