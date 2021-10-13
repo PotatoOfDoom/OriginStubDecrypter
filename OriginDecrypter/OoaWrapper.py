@@ -16,6 +16,7 @@ class OoaWrapper:
             SHA1.new(b'5.02.04.66').digest(): 'OoaSection5020162',
             SHA1.new(b'5.02.01.62').digest(): 'OoaSection5020162', #seems like content is the same - no need to create another file definition
             SHA1.new(b'4.11.04.26').digest(): 'OoaSection4110126',
+            SHA1.new(b'4.11.01.297').digest(): 'OoaSection4110126',
         }
 
         self.version = versions[ooaMini.version_id_sha1_hash]
