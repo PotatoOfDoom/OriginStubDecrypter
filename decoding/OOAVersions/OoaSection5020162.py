@@ -8,7 +8,7 @@ from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
 if parse_version(kaitaistruct.__version__) < parse_version('0.9'):
     raise Exception("Incompatible Kaitai Struct Python API: 0.9 or later is required, but you have %s" % (kaitaistruct.__version__))
 
-class OoaSection(KaitaiStruct):
+class OoaSection5020162(KaitaiStruct):
     def __init__(self, _io, _parent=None, _root=None):
         self._io = _io
         self._parent = _parent
@@ -16,17 +16,17 @@ class OoaSection(KaitaiStruct):
         self._read()
 
     def _read(self):
-        self.jmp_asm = OoaSection.JumpInstr(self._io, self, self._root)
+        self.jmp_asm = OoaSection5020162.JumpInstr(self._io, self, self._root)
         self.gap = self._io.read_bytes(8)
         self.activation_dll_str = (self._io.read_bytes(22)).decode(u"ascii")
         self.machine_id_version = (self._io.read_bytes(4)).decode(u"ascii")
         self.version_id_sha1_hash = self._io.read_bytes(20)
-        self.origin_flag = OoaSection.OriginFlags(self._io, self, self._root)
+        self.origin_flag = OoaSection5020162.OriginFlags(self._io, self, self._root)
         self.content_ids = (self._io.read_bytes(512)).decode(u"utf-16")
         self.import_directory = []
         i = 0
         while True:
-            _ = OoaSection.ImportDescriptor(self._io, self, self._root)
+            _ = OoaSection5020162.ImportDescriptor(self._io, self, self._root)
             self.import_directory.append(_)
             if _.characteristics == 0:
                 break
@@ -34,7 +34,7 @@ class OoaSection(KaitaiStruct):
         self.import_address_table_directory = []
         i = 0
         while True:
-            _ = OoaSection.ImageThunkData(self._io, self, self._root)
+            _ = OoaSection5020162.ImageThunkData(self._io, self, self._root)
             self.import_address_table_directory.append(_)
             if _.function == 0:
                 break
@@ -42,7 +42,7 @@ class OoaSection(KaitaiStruct):
         self.original_thunk_directory = []
         i = 0
         while True:
-            _ = OoaSection.ImageThunkData(self._io, self, self._root)
+            _ = OoaSection5020162.ImageThunkData(self._io, self, self._root)
             self.original_thunk_directory.append(_)
             if _.function == 0:
                 break
@@ -52,38 +52,25 @@ class OoaSection(KaitaiStruct):
         self.new_relocation_directory_size = self._io.read_u4le()
         self._raw_new_relocation_directory = self._io.read_bytes(self.new_relocation_directory_size)
         _io__raw_new_relocation_directory = KaitaiStream(BytesIO(self._raw_new_relocation_directory))
-        self.new_relocation_directory = OoaSection.ImageBaseRelocations(_io__raw_new_relocation_directory, self, self._root)
+        self.new_relocation_directory = OoaSection5020162.ImageBaseRelocations(_io__raw_new_relocation_directory, self, self._root)
         self.gap5 = self._io.read_bytes((self.relocation_directory_max_size - self.new_relocation_directory_size))
         self.has_tls = self._io.read_u4le()
         self.tls_address_of_callbacks = self._io.read_u4le()
         self.first_tls_callback = self._io.read_u8le()
-        if True:
-            self.tls_callback_offsets = []
-            i = 0
-            while True:
-                _ = self._io.read_u8le()
-                self.tls_callback_offsets.append(_)
-                if _ == 0:
-                    break
-                i += 1
-
-        if True:
-            self.alignment_gap = self._io.read_bytes(((490 - (self._io.pos() % 256)) if (self._io.pos() % 256) > 234 else (234 - (self._io.pos() % 256))))
-
         self.address_of_entry_point = self._io.read_u4le()
         self.count_of_crypted_sections = self._io.read_u1()
         self.enc_blocks = [None] * (self.count_of_crypted_sections)
         for i in range(self.count_of_crypted_sections):
-            self.enc_blocks[i] = OoaSection.EncBlockData(self._io, self, self._root)
+            self.enc_blocks[i] = OoaSection5020162.EncBlockData(self._io, self, self._root)
 
         self.useless_bloat = self._io.read_bytes(((10 * 48) - (self.count_of_crypted_sections * 48)))
         self.gap7 = self._io.read_bytes(8)
         self.unknown_always_1 = self._io.read_u1()
         self.image_base = self._io.read_u8le()
         self.size_of_image = self._io.read_u4le()
-        self.import_directory_data = OoaSection.ImageDataDirectory(self._io, self, self._root)
-        self.base_relocation_table_directory_data = OoaSection.ImageDataDirectory(self._io, self, self._root)
-        self.import_address_table_directory_data = OoaSection.ImageDataDirectory(self._io, self, self._root)
+        self.import_directory_data = OoaSection5020162.ImageDataDirectory(self._io, self, self._root)
+        self.base_relocation_table_directory_data = OoaSection5020162.ImageDataDirectory(self._io, self, self._root)
+        self.import_address_table_directory_data = OoaSection5020162.ImageDataDirectory(self._io, self, self._root)
         self.denuvo_dll_name = (self._io.read_bytes(16)).decode(u"ascii")
 
     class OriginFlags(KaitaiStruct):
@@ -199,7 +186,7 @@ class OoaSection(KaitaiStruct):
             self.size_of_block = self._io.read_u4le()
             self._raw_type_offsets = self._io.read_bytes((self.size_of_block - 8))
             _io__raw_type_offsets = KaitaiStream(BytesIO(self._raw_type_offsets))
-            self.type_offsets = OoaSection.TypeOffsets(_io__raw_type_offsets, self, self._root)
+            self.type_offsets = OoaSection5020162.TypeOffsets(_io__raw_type_offsets, self, self._root)
 
 
     class ImageBaseRelocations(KaitaiStruct):
@@ -213,7 +200,7 @@ class OoaSection(KaitaiStruct):
             self.image_base_relocation = []
             i = 0
             while not self._io.is_eof():
-                self.image_base_relocation.append(OoaSection.ImageBaseRelocation(self._io, self, self._root))
+                self.image_base_relocation.append(OoaSection5020162.ImageBaseRelocation(self._io, self, self._root))
                 i += 1
 
 
@@ -229,7 +216,7 @@ class OoaSection(KaitaiStruct):
             self.entries = []
             i = 0
             while not self._io.is_eof():
-                self.entries.append(OoaSection.ImageThunkData(self._io, self, self._root))
+                self.entries.append(OoaSection5020162.ImageThunkData(self._io, self, self._root))
                 i += 1
 
 
@@ -257,11 +244,8 @@ class OoaSection(KaitaiStruct):
             self.entries = []
             i = 0
             while True:
-                _ = OoaSection.ImportDescriptor(self._io, self, self._root)
+                _ = OoaSection5020162.ImportDescriptor(self._io, self, self._root)
                 self.entries.append(_)
                 if _.characteristics == 0:
                     break
                 i += 1
-
-
-

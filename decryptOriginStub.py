@@ -1,12 +1,11 @@
 import os, sys
-from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
 import pathlib
 import pefile
 import binascii
-import ooa_section
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from xml.etree import ElementTree
+from decoding.OoaWrapper import OoaWrapper
  
 ORIGIN_LICENSE_AES_KEY = "QTJyLdCC77DcZFfFdmjKCQ=="
 ORIGIN_LICENSE_PATH = "C:\\ProgramData\\Electronic Arts\\EA Services\\License"
@@ -22,7 +21,6 @@ def get_decryption_key(content_id):
         for file in files:
             if file == f"{content_id}.dlf" or file == f"{content_id}_cached.dlf":
                 license_path = os.path.join(root, file)
-                license_size = os.path.getsize(license_path)
                 with open(license_path, "r+b") as license_file:
                     license_file.seek(0x41)
                     license_body_enc = license_file.read()
@@ -36,14 +34,16 @@ def get_decryption_key(content_id):
  
                     return decryption_key
     return None
- 
+
+
 def parse_ooa_section(pe_file):
     for index, section in enumerate(pe_file.sections):
         section_name = fix_string(section.Name.decode("utf-8"))
         if section_name == ".ooa":
             section_data = pe_file.get_data(section.VirtualAddress, section.SizeOfRawData)
-            return ooa_section.OoaSection(KaitaiStream(BytesIO(section_data)))
+            return OoaWrapper(section_data).OoaData
     return None
+
 
 def get_encrypted_sections(pe_file, ooa_section):
     encrypted_sections = []
@@ -52,6 +52,7 @@ def get_encrypted_sections(pe_file, ooa_section):
             if section.VirtualAddress == encrypted_block.virtual_address:
                 encrypted_sections.append(section)
     return encrypted_sections
+
 
 def delete_section(pe_file, section):
     section_alignment = pe_file.OPTIONAL_HEADER.SectionAlignment
@@ -78,6 +79,7 @@ def delete_section(pe_file, section):
 
     pe_file.header = pe_file.header[: nt_headers + sectionCount * 0x28] + b"\00" * 0x28 + pe_file.header[nt_headers + sectionCount * 0x28 + 0x28:]
 
+
 def delete_ooa_section(pe_file):
     for index, section in enumerate(pe_file.sections):
         section_name = fix_string(section.Name.decode("utf-8"))
@@ -86,6 +88,7 @@ def delete_ooa_section(pe_file):
             return True
     return False
 
+
 def fix_string(string):
     fixed_string = ''
     for char in string:
@@ -93,20 +96,18 @@ def fix_string(string):
             break
         fixed_string += char
     return fixed_string
- 
-if __name__ == "__main__":
-    #pe_path = input("Enter the path to the PE file: ")
-    pe_path = pathlib.Path(sys.argv[1])
 
-    pe_file = pefile.PE(pe_path)
 
-    ooa_info = parse_ooa_section(pe_file)
+def decryptSections(pe_file, pe_sections, decryption_key):
+    for index, section in enumerate(pe_sections):
+        section_data = pe_file.get_data(section.VirtualAddress, section.SizeOfRawData)
+        decrypted_section = aes_decrypt(section_data, decryption_key)
 
-    #ideally the first one
-    pe_content_id = ooa_info.content_ids.replace('\0', '').rstrip().split(',')[0]
+        pe_file.set_bytes_at_rva(section.VirtualAddress, bytes(section.SizeOfRawData))
+        pe_file.set_bytes_at_rva(section.VirtualAddress, decrypted_section)
 
-    pe_sections = get_encrypted_sections(pe_file, ooa_info)
 
+def fixHeaders(pe_file, ooa_info):
     pe_oep = ooa_info.address_of_entry_point
 
     pe_iat = ooa_info.import_address_table_directory_data.virtual_address
@@ -115,43 +116,6 @@ if __name__ == "__main__":
     pe_imports = ooa_info.import_directory_data.virtual_address
     pe_imports_size = ooa_info.import_directory_data.size
 
-    # Get the decryption key from our license.
-    decryption_key = get_decryption_key(pe_content_id)
-
-    # Determine whether we're working with a 32-bit file or a 64-bit file.
-    address_size = 8 if pe_file.OPTIONAL_HEADER.Magic == pefile.OPTIONAL_HEADER_MAGIC_PE_PLUS else 4
- 
-    for index, section in enumerate(pe_sections):
-        section_data = pe_file.get_data(section.VirtualAddress, section.SizeOfRawData)
-        decrypted_section = aes_decrypt(section_data, decryption_key)
-
-        pe_file.set_bytes_at_rva(section.VirtualAddress, bytes(section.SizeOfRawData))
-        pe_file.set_bytes_at_rva(section.VirtualAddress, decrypted_section)
-
-#    # Enumerate through the sections and perform section-specific operations.
-#    for index, section in enumerate(pe_file.sections):
-#        section_name = fix_string(section.Name.decode("utf-8"))
-#        section_rva = section.VirtualAddress
-#        section_size = section.SizeOfRawData
-# 
-#        # Decrypt code and data sections.
-#        if section_name in pe_sections:
-#            # Get section data.
-#            section_data = pe_file.get_data(section_rva, section_size)
-# 
-#            # Decrypt section.
-#            decrypted_section = aes_decrypt(section_data, decryption_key)
-# 
-#            # Overwrite the old section with zeros first and then overwrite with the decrypted section.
-#            pe_file.set_bytes_at_rva(section_rva, bytes(section_size))
-#            pe_file.set_bytes_at_rva(section_rva, decrypted_section)
-# 
-#        # Set relocation directory entry to new relocations.
-#        if section_name == ".reloc":
-#            pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]].VirtualAddress = section_rva
-#            pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]].Size = section_size
-            
-            
     pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]].VirtualAddress = ooa_info.base_relocation_table_directory_data.virtual_address
     pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]].Size = ooa_info.base_relocation_table_directory_data.size
 
@@ -179,6 +143,26 @@ if __name__ == "__main__":
     if ooa_info.first_tls_callback != 0:
         pe_file.set_bytes_at_rva(ooa_info.tls_address_of_callbacks, ooa_info.first_tls_callback.to_bytes(8, byteorder='little', signed = False))
 
+
+def main():
+    pe_path = pathlib.Path(sys.argv[1])
+
+    pe_file = pefile.PE(pe_path)
+
+    ooa_info = parse_ooa_section(pe_file)
+
+    #ideally the first one
+    pe_content_id = ooa_info.content_ids.replace('\0', '').rstrip().split(',')[0]
+            
+    pe_sections = get_encrypted_sections(pe_file, ooa_info)
+
+    # Get the decryption key from our license.
+    decryption_key = get_decryption_key(pe_content_id)
+
+    decryptSections(pe_file, pe_sections, decryption_key)
+    
+    fixHeaders(pe_file, ooa_info)
+
     # Remove the digital signature.
     #pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].VirtualAddress = 0
     #pe_file.OPTIONAL_HEADER.DATA_DIRECTORY[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]].Size = 0
@@ -187,3 +171,6 @@ if __name__ == "__main__":
     pe_file.merge_modified_section_data()
     #pe_file.OPTIONAL_HEADER.CheckSum = pe_file.generate_checksum()
     pe_file.write(filename=f"{pe_path.stem}.fixed{pe_path.suffix}")
+
+if __name__ == "__main__":
+    main()
