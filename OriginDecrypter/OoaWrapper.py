@@ -1,4 +1,5 @@
-from decoding.ooa_mini import OoaSectionMini
+#small version of the ooa section that only contains enough info to parse things till the version hash. then select the right structure for the version hash.
+from OriginDecrypter.OoaMini import OoaSectionMini
 from kaitaistruct import KaitaiStruct, KaitaiStream, BytesIO
 
 from Crypto.Hash import SHA1
@@ -21,7 +22,7 @@ class OoaWrapper:
         if self.version is None:
             raise Exception("Unknown OOA version" + " Hash: " + hex(ooaMini.version_id_sha1_hash))
 
-        module = importlib.import_module('decoding.OOAVersions.' + self.version)
+        module = importlib.import_module('OriginDecrypter.OOAVersions.' + self.version)
         realest_class = getattr(module, self.version)
 
         self.OoaData = realest_class(KaitaiStream(BytesIO(self.rawData)))

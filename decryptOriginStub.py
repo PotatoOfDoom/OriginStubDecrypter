@@ -5,7 +5,7 @@ import binascii
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from xml.etree import ElementTree
-from decoding.OoaWrapper import OoaWrapper
+from OriginDecrypter.OoaWrapper import OoaWrapper
  
 ORIGIN_LICENSE_AES_KEY = "QTJyLdCC77DcZFfFdmjKCQ=="
 ORIGIN_LICENSE_PATH = "C:\\ProgramData\\Electronic Arts\\EA Services\\License"
