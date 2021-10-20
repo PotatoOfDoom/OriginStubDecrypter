@@ -42,7 +42,7 @@ def parse_ooa_section(pe_file):
         if section_name == ".ooa":
             section_data = pe_file.get_data(section.VirtualAddress, section.SizeOfRawData)
             return OoaWrapper(section_data).OoaData
-    return None
+    raise Exception("Error: OOA Section doesn't exist")
 
 
 def get_encrypted_sections(pe_file, ooa_section):
